@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="GBK">
+	<title>HBase Web - Scanner Performance Comparison</title>
+	
+	<!-- jQuery -->
+	<script type="text/javascript" src="./jquery-1.8.2.js"></script>
+	
+	<!-- masonry -->
+    <script src="./masonry/jquery.masonry.min.js"></script>
+	<link rel="stylesheet" href="./masonry/style.css" />
+	
+    <!-- jqplot -->
+    <script type="text/javascript" src="./jqplot/jquery.jqplot.min.js"></script>
+    <script type="text/javascript" src="./jqplot/plugins/jqplot.highlighter.min.js"></script>
+    <script type="text/javascript" src="./jqplot/plugins/jqplot.cursor.min.js"></script>
+    <script type="text/javascript" src="./jqplot/plugins/jqplot.dateAxisRenderer.min.js"></script>
+    <link rel="stylesheet" type="text/css" hrf="./jqplot/jquery.jqplot.min.css" />
+    <script type="text/javascript" src="./jqplot/syntaxhighlighter/scripts/shCore.min.js"></script>
+    <script type="text/javascript" src="./jqplot/syntaxhighlighter/scripts/shBrushJScript.min.js"></script>
+    <script type="text/javascript" src="./jqplot/syntaxhighlighter/scripts/shBrushXml.min.js"></script>
+	<script language="javascript" type="text/javascript" src="./jqplot/excanvas.js"></script>
+	
+	<!-- jTPS -->
+    <script language="JavaScript" type="text/javascript" src="./jtps/jTPS.js"></script>
+	<link rel="stylesheet" type="text/css" href="./jtps/jTPS.css">
+	
+	<style>
+        body {
+		    font-family: Consolas;
+			font-size: 9pt;
+        }
+		#demoTable thead th {
+			padding: 3px;
+        }
+		#demoTable tbody td {
+		    padding: 3px;
+		}
+    </style>
+</head>
+
+<body>
+  <table><tr><td>
+  <div id="profile">
+  &nbsp;&nbsp;&nbsp;&nbsp;HBase versions compared:<br>
+  &nbsp;&nbsp;&nbsp;&nbsp;- HBase-0.94.3-testscan-original (Original)<br>
+  &nbsp;&nbsp;&nbsp;&nbsp;- HBase-0.94.3-testscan-7312 (New)<br>
+  &nbsp;&nbsp;&nbsp;&nbsp;-----------------------------------------------------------------<br>
+  &nbsp;&nbsp;&nbsp;&nbsp;Workload Profile (every scan pass is under the following profile:):<br>
+  &nbsp;&nbsp;&nbsp;&nbsp;- IO on local fs, not HDFS<br>
+  &nbsp;&nbsp;&nbsp;&nbsp;- Read 1000000 rows<br>
+  &nbsp;&nbsp;&nbsp;&nbsp;- Total bytes: 128000000<br>
+  &nbsp;&nbsp;&nbsp;&nbsp;- HFILE_BLOCK_SIZE: 64KB<br>
+  &nbsp;&nbsp;&nbsp;&nbsp;- KEY_SIZE: 16 bytes<br>
+  &nbsp;&nbsp;&nbsp;&nbsp;- VALUE_SIZE: 100 bytes<br>
+  &nbsp;&nbsp;&nbsp;&nbsp;- Read through StoreScanner and heap<br>
+  &nbsp;&nbsp;&nbsp;&nbsp;- Use raw (non-checksummed) fs when writing to local fs<br>
+  &nbsp;&nbsp;&nbsp;&nbsp;- Disable use of HBase checksums<br>
+  </div>
+  </td>
+  <td>
+  <div id="summary" float="right"></div>
+  </td></tr></table> 
+  <div id="tumblelog" class="clearfix">
+  
+    <div class="story col2">
+	    <table id="demoTable" style="border: 1px solid #ccc;" cellspacing="0" width="400">
+	    </table>
+    </div>
+	
+	<div class="story col3">
+		Odd Threshold:<input id="input_odd_threshold" size="5">%&nbsp;&nbsp;
+	    Point frequency for chat:<input id="input_pt_freq" size="5">pts&nbsp;&nbsp;
+	    <input id="input_refresh_interval" size="5">sec
+	    <button id="button_refresh">Set Refresh Interval</button>
+	    <div id="chart1" style="height:300px; width:700px;"></div>
+    </div>
+	
+  </div>
+
+<script class="code" type="text/javascript">
+
+var data4table = [];
+var summary = null;
+var last_ref_internal = 0;
+var refresh_interval = 300000;
+var odd_threshold = 10;
+var pt_freq = 30;
+var plot;
+
+$("#input_refresh_interval").val(refresh_interval / 1000);
+$("#input_odd_threshold").val(odd_threshold);
+$("#input_pt_freq").val(pt_freq);
+
+plot = $.jqplot('chart1', [[0]], {
+    title:'Scan elapse time difference trending',
+    axes:{
+        xaxis:{min:1},
+        yaxis:{}
+    },
+    highlighter: {
+        show: true,
+        sizeAdjust: 7.5
+    },
+    cursor: {
+        show: false
+    }
+});
+
+function loadData(){
+    var tableHtmlStr = "<thead><tr><th>Original(ms)</th><th>New(ms)</th><th>Diff (Original-New)/Original (%)</th></tr><tbody>";
+	var timeParam = Math.round(new Date().getTime()/1000);
+
+    $.getJSON(
+	    "http://" + location.host + "/hbase-web/CompareReportServlet?oddth=" + 
+		    $("#input_odd_threshold").attr("value") + "&freq=" + 
+			$("#input_pt_freq").attr("value") + "&timenow=" + timeParam,
+	    function(data) {
+		    $.each(data, function(entryIndex, entry){
+			    if (entry['error']) {
+				    summary = entry['error'];
+				} else {
+				    summary = entry['summary'];
+					data4table = entry['records'];
+			        $.each(data4table, function(entryIndex, entry){
+                        tableHtmlStr += "<tr><td>" + entry['original'] + "</td><td>" + entry['new'] + "</td><td>" + entry['diff'] + "</td></tr>";
+				    });
+					
+					plot.destroy();
+					plot = $.jqplot('chart1', [entry['diffarray']], {
+                        title:'Scan elapse time difference trending',
+                        axes:{
+                            xaxis:{min:1},
+                            yaxis:{}
+                        },
+                        highlighter: {
+                            show: true,
+                            sizeAdjust: 7.5
+                        },
+                        cursor: {
+                            show: false
+                        }
+                    });
+				}
+			});
+	
+	        tableHtmlStr += "</tbody>";
+	        $("#demoTable").html(tableHtmlStr);
+
+	        $("#summary").html(summary);
+        }
+	);
+}
+
+loadData();
+last_ref_internal = setInterval("loadData()",refresh_interval);
+
+$(function() {
+	$ ("#button_refresh").click(function(){
+	    if (last_ref_internal != 0) {
+		    clearInterval(last_ref_internal);
+		}
+		setInterval("loadData()",$("#input_refresh_interval").attr("value") * 1000);
+		loadData();
+    });
+});
+
+</script>
+
+</body>
+</html>

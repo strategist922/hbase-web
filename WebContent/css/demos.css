@@ -1,0 +1,35 @@
+body {
+	font-size: 62.5%;
+	font-family: "Trebuchet MS", "Arial", "Helvetica", "Verdana", "sans-serif";
+}
+
+table {
+	font-size: 1em;
+}
+
+.demo-description {
+	clear: both;
+	padding: 12px;
+	font-size: 1.3em;
+	line-height: 1.4em;
+}
+
+.ui-draggable, .ui-droppable {
+	background-position: top;
+}
+
+.ui-widget-content ul li {            
+    margin-left:10px;
+	margin-right:10px;
+    margin-bottom:10px; 	
+    display:inline;
+	float:left;
+}
+.ui-widget-nav-bar { border: 1px solid #aaaaaa/*{borderColorContent}*/; background: #003366/*{bgColorContent}*/ url(images/ui-bg_flat_75_ffffff_40x100.png)/*{bgImgUrlContent}*/ 50%/*{bgContentXPos}*/ 50%/*{bgContentYPos}*/ repeat-x/*{bgContentRepeat}*/; color: #ffffff/*{fcContent}*/; }
+
+span.highlight-brand{background-color:#FFFF00}
+span.highlight-model{background-color:#FFD700}
+span.highlight-property{background-color:#DDA0DD}
+span.highlight-sentiment{background-color:#F0E68C}
+span.highlight-intent{background-color:#90EE90}
+span.highlight-comment{background-color:#87CEEB}
